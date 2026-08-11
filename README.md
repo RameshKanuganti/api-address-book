@@ -265,13 +265,13 @@ only once.
 Retrieves contacts using page number and page size.
 
 ```http
-GET /api/v1/address-books/contacts/{pageNo}/{pageSize}
+GET /api/v1/address-books/contacts?page=0&size=4
 ```
 
 Example:
 
 ```http
-GET /api/v1/address-books/contacts/0/10
+GET /api/v1/address-books/contacts?page=0&size=10
 ```
 
 ### Parameters

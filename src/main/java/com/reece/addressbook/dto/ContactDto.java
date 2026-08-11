@@ -18,7 +18,7 @@ public class ContactDto extends BaseEntity {
     private Long id;
 
     @NotBlank(message = "Contact name is required")
-    @Size(max = 20, message = "Contact name must not exceed 20 characters")
+    @Size(max = 30, message = "Contact name must not exceed 30 characters")
     private String name;
 
     /**
