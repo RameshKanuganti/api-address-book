@@ -12,7 +12,8 @@ public class ContactMapper {
         Contact contact = new Contact();
         contact.setId(dto.getId());
         contact.setName(dto.getName());
-        contact.setPhoneNumber(dto.getPhoneNumber().trim().replaceAll("\\s+", ""));
+        String phoneNumber = dto.getPhoneNumber();
+        contact.setPhoneNumber(phoneNumber == null ? null : phoneNumber.trim().replaceAll("\\s+", ""));
         return contact;
     }
 
