@@ -13,12 +13,13 @@ import com.reece.addressbook.repository.ContactRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.HashSet;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,10 +45,10 @@ public class AddressBookService {
         this.contactMapper = contactMapper;
     }
 
+    @Transactional
     public AddressBookDto createAddressBook(AddressBookDto dto) {
         AddressBook addressBook = addressBookMapper.toAddressBookEntity(dto);
 
-        // Persist contacts first before saving the AddressBook
         if (!ObjectUtils.isEmpty(addressBook.getContacts())) {
             Set<Contact> persistedContacts = new HashSet<>();
             for (Contact contact : addressBook.getContacts()) {
@@ -63,14 +64,13 @@ public class AddressBookService {
     }
 
     /**
-     * Creates or gets a contact and adds it to an existing AddressBook.
-     * If the contact already exists (same name and phone number), it will be reused.
-     * If it's new, it will be created and then added to the AddressBook.
+     * Adds a contact to an existing address book and returns the associated contact.
+     * Returning the ContactDto (rather than the full AddressBookDto) follows REST
+     * conventions for a POST to a sub-resource.
      */
-    public AddressBookDto addNewContactToAddressBook(Long addressBookId, ContactDto contactDto) {
+    @Transactional
+    public ContactDto addNewContactToAddressBook(Long addressBookId, ContactDto contactDto) {
         AddressBook addressBook = getAddressBookEntity(addressBookId);
-
-        // Convert DTO to entity and get or create the contact
         Contact contact = contactMapper.toContactEntity(contactDto);
         Contact persistedContact = contactService.getOrCreateContact(contact);
 
@@ -78,71 +78,92 @@ public class AddressBookService {
         AddressBook addressBookEntity = addressBookRepository.save(addressBook);
         log.info("Added new contact id={}, name={} to address book id={}",
                 persistedContact.getId(), persistedContact.getName(), addressBookId);
-        return addressBookMapper.toAddressBookDto(addressBookEntity);
+        return contactMapper.toContactDto(persistedContact);
     }
 
+    @Transactional(readOnly = true)
     public List<AddressBookDto> getAllAddressBooks() {
         return addressBookRepository.findAll().stream()
                 .map(addressBookMapper::toAddressBookDto)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public AddressBookDto getAddressBookById(Long id) {
         return addressBookMapper.toAddressBookDto(getAddressBookEntity(id));
     }
 
+    @Transactional
     public void deleteAddressBook(Long id) {
         AddressBook addressBook = getAddressBookEntity(id);
         addressBookRepository.delete(addressBook);
         log.info("Deleted address book id={}", id);
     }
 
+    /**
+     * Removes a contact from an address book.
+     * Validates that the contact actually belongs to the specified address book
+     * before attempting removal — avoids silent no-ops and misleading responses.
+     * If the contact is no longer referenced by any address book it is deleted.
+     */
+    @Transactional
     public AddressBookDto removeContactFromAddressBook(Long addressBookId, Long contactId) {
         AddressBook addressBook = getAddressBookEntity(addressBookId);
         Contact contact = contactService.getById(contactId);
 
-        addressBook.removeContact(contact);
-        AddressBook addressBookEntity = addressBookRepository.save(addressBook);
-        log.info("Removed contact id={} from address book id={}", contactId, addressBookId);
-        
-        // Check if this contact is used in any other address books
-        long contactCount = addressBookRepository.countByContactId(contactId);
-        if (contactCount == 0) {
-            // Contact is not used in any address book, delete it from database
-            contactRepository.delete(contact);
-            log.info("Contact id={} was not used in any other address book, deleted from database", contactId);
+        // Explicitly verify membership to prevent silently ignoring invalid requests
+        if (!addressBook.getContacts().contains(contact)) {
+            throw new BusinessValidationException(
+                    String.format("Contact id=%d does not belong to address book id=%d",
+                            contactId, addressBookId));
         }
-        
-        return addressBookMapper.toAddressBookDto(addressBookEntity);
+
+        addressBook.removeContact(contact);
+        AddressBook saved = addressBookRepository.save(addressBook);
+        log.info("Removed contact id={} from address book id={}", contactId, addressBookId);
+
+        long remainingRefs = addressBookRepository.countByContactId(contactId);
+        if (remainingRefs == 0) {
+            contactRepository.delete(contact);
+            log.info("Contact id={} had no remaining address-book references – deleted", contactId);
+        }
+
+        return addressBookMapper.toAddressBookDto(saved);
     }
 
     /**
-     * Unique set of all contacts across all address books.
+     * Unique contacts across all address books via a DB-level DISTINCT query.
+     * Avoids loading all address books and contacts into memory (N+1 / heap issue).
      */
+    @Transactional(readOnly = true)
     public Set<ContactDto> getUniqueContactsAcrossAllAddressBooks() {
-        Set<Contact> uniqueContacts = addressBookRepository.findAll().stream()
-                .flatMap(ab -> ab.getContacts().stream())
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-
-        return uniqueContacts.stream()
+        return addressBookRepository.findAllDistinctContacts().stream()
                 .map(contactMapper::toContactDto)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     /**
-     * Unique set of contacts across the provided address book ids. Throws BusinessValidationException
-     * if the list is null or empty.
+     * Unique contacts for the given address book IDs via a DB-level DISTINCT query.
+     * All requested IDs must exist; missing IDs result in a 404 to make the
+     * API contract explicit rather than silently returning partial results.
      */
+    @Transactional(readOnly = true)
     public Set<ContactDto> getUniqueContactsAcrossAddressBooks(List<Long> addressBookIds) {
         if (addressBookIds == null || addressBookIds.isEmpty()) {
-            throw new BusinessValidationException("Address book IDs parameter is required and cannot be empty");
+            throw new BusinessValidationException(
+                    "Address book IDs parameter is required and cannot be empty");
         }
 
-        Set<Contact> uniqueContacts = addressBookRepository.findAllById(addressBookIds).stream()
-                .flatMap(ab -> ab.getContacts().stream())
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+        List<Long> foundIds = addressBookRepository.findAllById(addressBookIds)
+                .stream().map(AddressBook::getId).collect(Collectors.toList());
+        List<Long> missingIds = addressBookIds.stream()
+                .filter(id -> !foundIds.contains(id))
+                .collect(Collectors.toList());
+        if (!missingIds.isEmpty()) {
+            throw new ResourceNotFoundException("Address books not found for ids: " + missingIds);
+        }
 
-        return uniqueContacts.stream()
+        return addressBookRepository.findDistinctContactsByAddressBookIds(addressBookIds).stream()
                 .map(contactMapper::toContactDto)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }

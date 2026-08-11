@@ -1,7 +1,6 @@
 package com.reece.addressbook.mapper;
 
 import com.reece.addressbook.dto.ContactDto;
-import com.reece.addressbook.mapper.ContactMapper;
 import com.reece.addressbook.model.Contact;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,12 +23,12 @@ class ContactMapperTest {
         contact = new Contact();
         contact.setId(1L);
         contact.setName("John Doe");
-        contact.setPhoneNumber(123456789L);
+        contact.setPhoneNumber("+61123456789");
 
         contactDto = new ContactDto();
         contactDto.setId(1L);
         contactDto.setName("John Doe");
-        contactDto.setPhoneNumber(123456789L);
+        contactDto.setPhoneNumber("+61123456789");
     }
 
     @Test
@@ -57,7 +56,7 @@ class ContactMapperTest {
         Contact original = new Contact();
         original.setId(1L);
         original.setName("Test Contact");
-        original.setPhoneNumber(111111111L);
+        original.setPhoneNumber("+61111111111");
 
         ContactDto dto = contactMapper.toContactDto(original);
         Contact mapped = contactMapper.toContactEntity(dto);
@@ -72,7 +71,7 @@ class ContactMapperTest {
         Contact specialContact = new Contact();
         specialContact.setId(1L);
         specialContact.setName("John O'Reilly-Smith");
-        specialContact.setPhoneNumber(123456789L);
+        specialContact.setPhoneNumber("+61123456789");
 
         ContactDto result = contactMapper.toContactDto(specialContact);
 
@@ -80,15 +79,14 @@ class ContactMapperTest {
     }
 
     @Test
-    void mapContactPreservesPhoneNumberFormat() {
+    void mapContactPreservesE164PhoneNumber() {
         Contact c = new Contact();
         c.setId(5L);
         c.setName("Jane");
-        c.setPhoneNumber(9876543210L);
+        c.setPhoneNumber("+61987654321");
 
         ContactDto result = contactMapper.toContactDto(c);
 
-        assertThat(result.getPhoneNumber()).isEqualTo(9876543210L);
+        assertThat(result.getPhoneNumber()).isEqualTo("+61987654321");
     }
 }
-

@@ -12,7 +12,7 @@ public class ContactMapper {
         Contact contact = new Contact();
         contact.setId(dto.getId());
         contact.setName(dto.getName());
-        contact.setPhoneNumber(dto.getPhoneNumber());
+        contact.setPhoneNumber(dto.getPhoneNumber().trim().replaceAll("\\s+", ""));
         return contact;
     }
 

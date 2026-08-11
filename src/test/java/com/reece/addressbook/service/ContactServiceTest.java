@@ -21,7 +21,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -45,12 +46,12 @@ class ContactServiceTest {
         contact = new Contact();
         contact.setId(1L);
         contact.setName("John Doe");
-        contact.setPhoneNumber(123456789L);
+        contact.setPhoneNumber("+61123456789");
 
         contactDto = new ContactDto();
         contactDto.setId(1L);
         contactDto.setName("John Doe");
-        contactDto.setPhoneNumber(123456789L);
+        contactDto.setPhoneNumber("+61123456789");
     }
 
     @Test
@@ -63,7 +64,7 @@ class ContactServiceTest {
 
         assertThat(result).isNotNull();
         assertThat(result.getName()).isEqualTo("John Doe");
-        assertThat(result.getPhoneNumber()).isEqualTo(123456789L);
+        assertThat(result.getPhoneNumber()).isEqualTo("+61123456789");
         verify(contactRepository, times(1)).save(contact);
     }
 
@@ -72,12 +73,12 @@ class ContactServiceTest {
         ContactDto contactDto2 = new ContactDto();
         contactDto2.setId(2L);
         contactDto2.setName("Jane Doe");
-        contactDto2.setPhoneNumber(987654321L);
+        contactDto2.setPhoneNumber("+61987654321");
 
         Contact contact2 = new Contact();
         contact2.setId(2L);
         contact2.setName("Jane Doe");
-        contact2.setPhoneNumber(987654321L);
+        contact2.setPhoneNumber("+61987654321");
 
         when(contactMapper.toContactEntity(contactDto2)).thenReturn(contact2);
         when(contactRepository.save(contact2)).thenReturn(contact2);
@@ -85,7 +86,7 @@ class ContactServiceTest {
 
         ContactDto result = contactService.create(contactDto2);
 
-        assertThat(result.getPhoneNumber()).isEqualTo(987654321L);
+        assertThat(result.getPhoneNumber()).isEqualTo("+61987654321");
     }
 
     @Test
@@ -113,12 +114,12 @@ class ContactServiceTest {
         Contact contact2 = new Contact();
         contact2.setId(2L);
         contact2.setName("Jane Doe");
-        contact2.setPhoneNumber(987654321L);
+        contact2.setPhoneNumber("+61987654321");
 
         ContactDto contactDto2 = new ContactDto();
         contactDto2.setId(2L);
         contactDto2.setName("Jane Doe");
-        contactDto2.setPhoneNumber(987654321L);
+        contactDto2.setPhoneNumber("+61987654321");
 
         Pageable pageable = PageRequest.of(0, 10);
         Page<Contact> contactPage = new PageImpl<>(Arrays.asList(contact, contact2), pageable, 2);
@@ -181,9 +182,9 @@ class ContactServiceTest {
     void getOrCreateContactByPhoneNumberWhenExists() {
         Contact contactWithoutId = new Contact();
         contactWithoutId.setName("John Doe");
-        contactWithoutId.setPhoneNumber(123456789L);
+        contactWithoutId.setPhoneNumber("+61123456789");
 
-        when(contactRepository.findByPhoneNumber(123456789L)).thenReturn(Optional.of(contact));
+        when(contactRepository.findByPhoneNumber("+61123456789")).thenReturn(Optional.of(contact));
 
         Contact result = contactService.getOrCreateContact(contactWithoutId);
 
@@ -196,14 +197,14 @@ class ContactServiceTest {
     void getOrCreateContactCreatesNewWhenNotExists() {
         Contact newContact = new Contact();
         newContact.setName("New Contact");
-        newContact.setPhoneNumber(555555555L);
+        newContact.setPhoneNumber("+61555555555");
 
         Contact savedContact = new Contact();
         savedContact.setId(3L);
         savedContact.setName("New Contact");
-        savedContact.setPhoneNumber(555555555L);
+        savedContact.setPhoneNumber("+61555555555");
 
-        when(contactRepository.findByPhoneNumber(555555555L)).thenReturn(Optional.empty());
+        when(contactRepository.findByPhoneNumber("+61555555555")).thenReturn(Optional.empty());
         when(contactRepository.save(newContact)).thenReturn(savedContact);
 
         Contact result = contactService.getOrCreateContact(newContact);
@@ -217,9 +218,9 @@ class ContactServiceTest {
     void getOrCreateContactWithNullId() {
         Contact contactWithoutId = new Contact();
         contactWithoutId.setName("John Doe");
-        contactWithoutId.setPhoneNumber(123456789L);
+        contactWithoutId.setPhoneNumber("+61123456789");
 
-        when(contactRepository.findByPhoneNumber(123456789L)).thenReturn(Optional.of(contact));
+        when(contactRepository.findByPhoneNumber("+61123456789")).thenReturn(Optional.of(contact));
 
         Contact result = contactService.getOrCreateContact(contactWithoutId);
 
@@ -230,25 +231,25 @@ class ContactServiceTest {
     void getOrCreateMultipleNewContacts() {
         Contact contact1 = new Contact();
         contact1.setName("Contact1");
-        contact1.setPhoneNumber(111111111L);
+        contact1.setPhoneNumber("+61111111111");
 
         Contact contact2 = new Contact();
         contact2.setName("Contact2");
-        contact2.setPhoneNumber(222222222L);
+        contact2.setPhoneNumber("+61222222222");
 
         Contact savedContact1 = new Contact();
         savedContact1.setId(1L);
         savedContact1.setName("Contact1");
-        savedContact1.setPhoneNumber(111111111L);
+        savedContact1.setPhoneNumber("+61111111111");
 
         Contact savedContact2 = new Contact();
         savedContact2.setId(2L);
         savedContact2.setName("Contact2");
-        savedContact2.setPhoneNumber(222222222L);
+        savedContact2.setPhoneNumber("+61222222222");
 
-        when(contactRepository.findByPhoneNumber(111111111L)).thenReturn(Optional.empty());
+        when(contactRepository.findByPhoneNumber("+61111111111")).thenReturn(Optional.empty());
         when(contactRepository.save(contact1)).thenReturn(savedContact1);
-        when(contactRepository.findByPhoneNumber(222222222L)).thenReturn(Optional.empty());
+        when(contactRepository.findByPhoneNumber("+61222222222")).thenReturn(Optional.empty());
         when(contactRepository.save(contact2)).thenReturn(savedContact2);
 
         Contact result1 = contactService.getOrCreateContact(contact1);
@@ -268,13 +269,13 @@ class ContactServiceTest {
             Contact c = new Contact();
             c.setId((long) i);
             c.setName("Contact" + i);
-            c.setPhoneNumber(100000000L + i);
+            c.setPhoneNumber("+611" + String.format("%08d", i));
             contacts.add(c);
 
             ContactDto cd = new ContactDto();
             cd.setId((long) i);
             cd.setName("Contact" + i);
-            cd.setPhoneNumber(100000000L + i);
+            cd.setPhoneNumber("+611" + String.format("%08d", i));
             contactDtos.add(cd);
         }
 
@@ -294,4 +295,3 @@ class ContactServiceTest {
         assertThat(result.getTotalPages()).isEqualTo(5);
     }
 }
-

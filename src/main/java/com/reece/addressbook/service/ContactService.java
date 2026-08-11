@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 
 @Service
@@ -26,6 +27,7 @@ public class ContactService {
         this.contactMapper = contactMapper;
     }
 
+    @Transactional
     public ContactDto create(ContactDto dto) {
         Contact contact = contactMapper.toContactEntity(dto);
         Contact saved = contactRepository.save(contact);
@@ -33,27 +35,24 @@ public class ContactService {
         return contactMapper.toContactDto(saved);
     }
 
+    @Transactional(readOnly = true)
     public Contact getById(Long id) {
         return contactRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Contact not found, id=" + id));
     }
 
+    @Transactional(readOnly = true)
     public Page<ContactDto> getAll(Pageable pageable) {
         return contactRepository.findAll(pageable)
                 .map(contactMapper::toContactDto);
     }
 
+    @Transactional(readOnly = true)
     public Page<ContactDto> getAllContacts(int pageNo, int pageSize) {
         return getAll(PageRequest.of(pageNo, pageSize));
     }
 
-    // Without Pagination, if you want to retrieve all contacts at once, you can use the following method. However, be cautious with this approach if you have a large number of contacts, as it may lead to performance issues.
-    /*public List<ContactDto> getAllContacts() {
-        return contactRepository.findAll().stream()
-                .map(contactMapper::toContactDto)
-                .collect(Collectors.toList());
-    }*/
-
+    @Transactional
     public void delete(Long id) {
         Contact contact = getById(id);
         contactRepository.delete(contact);
@@ -66,6 +65,7 @@ public class ContactService {
      * If it exists, returns it; otherwise creates a new one.
      * This prevents duplicate contacts from being created.
      */
+    @Transactional
     public Contact getOrCreateContact(Contact contact) {
         // If the contact has an ID, retrieve it from the database
         if (!ObjectUtils.isEmpty(contact.getId())) {

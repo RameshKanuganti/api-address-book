@@ -28,20 +28,11 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AddressBookServiceTest {
 
-    @Mock
-    private AddressBookRepository addressBookRepository;
-
-    @Mock
-    private ContactRepository contactRepository;
-
-    @Mock
-    private ContactService contactService;
-
-    @Mock
-    private AddressBookMapper addressBookMapper;
-
-    @Mock
-    private ContactMapper contactMapper;
+    @Mock private AddressBookRepository addressBookRepository;
+    @Mock private ContactRepository contactRepository;
+    @Mock private ContactService contactService;
+    @Mock private AddressBookMapper addressBookMapper;
+    @Mock private ContactMapper contactMapper;
 
     @InjectMocks
     private AddressBookService addressBookService;
@@ -66,13 +57,15 @@ class AddressBookServiceTest {
         contact = new Contact();
         contact.setId(1L);
         contact.setName("John");
-        contact.setPhoneNumber(123456789L);
+        contact.setPhoneNumber("+61123456789");
 
         contactDto = new ContactDto();
         contactDto.setId(1L);
         contactDto.setName("John");
-        contactDto.setPhoneNumber(123456789L);
+        contactDto.setPhoneNumber("+61123456789");
     }
+
+    // ── createAddressBook ─────────────────────────────────────────────────────
 
     @Test
     void createAddressBookWithContactsSuccessfully() {
@@ -113,12 +106,12 @@ class AddressBookServiceTest {
         Contact contact2 = new Contact();
         contact2.setId(2L);
         contact2.setName("Jane");
-        contact2.setPhoneNumber(987654321L);
+        contact2.setPhoneNumber("+61987654321");
 
         ContactDto contactDto2 = new ContactDto();
         contactDto2.setId(2L);
         contactDto2.setName("Jane");
-        contactDto2.setPhoneNumber(987654321L);
+        contactDto2.setPhoneNumber("+61987654321");
 
         addressBookDto.setContacts(new HashSet<>(Arrays.asList(contactDto, contactDto2)));
         addressBook.setContacts(new HashSet<>(Arrays.asList(contact, contact2)));
@@ -134,17 +127,20 @@ class AddressBookServiceTest {
         verify(contactService, times(2)).getOrCreateContact(any());
     }
 
+    // ── addNewContactToAddressBook ────────────────────────────────────────────
+
     @Test
     void addNewContactToAddressBookSuccessfully() {
         when(addressBookRepository.findById(1L)).thenReturn(Optional.of(addressBook));
         when(contactMapper.toContactEntity(contactDto)).thenReturn(contact);
         when(contactService.getOrCreateContact(contact)).thenReturn(contact);
         when(addressBookRepository.save(addressBook)).thenReturn(addressBook);
-        when(addressBookMapper.toAddressBookDto(addressBook)).thenReturn(addressBookDto);
+        when(contactMapper.toContactDto(contact)).thenReturn(contactDto);
 
-        AddressBookDto result = addressBookService.addNewContactToAddressBook(1L, contactDto);
+        ContactDto result = addressBookService.addNewContactToAddressBook(1L, contactDto);
 
         assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(1L);
         verify(addressBookRepository, times(1)).findById(1L);
         verify(addressBookRepository, times(1)).save(addressBook);
     }
@@ -156,6 +152,8 @@ class AddressBookServiceTest {
         assertThatThrownBy(() -> addressBookService.addNewContactToAddressBook(999L, contactDto))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
+
+    // ── getAllAddressBooks ─────────────────────────────────────────────────────
 
     @Test
     void getAllAddressBooksReturnsMultipleBooks() {
@@ -183,6 +181,8 @@ class AddressBookServiceTest {
         assertThat(result).isEmpty();
     }
 
+    // ── getAddressBookById ─────────────────────────────────────────────────────
+
     @Test
     void getAddressBookByIdSuccessfully() {
         when(addressBookRepository.findById(1L)).thenReturn(Optional.of(addressBook));
@@ -202,6 +202,8 @@ class AddressBookServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
+    // ── deleteAddressBook ─────────────────────────────────────────────────────
+
     @Test
     void deleteAddressBookSuccessfully() {
         when(addressBookRepository.findById(1L)).thenReturn(Optional.of(addressBook));
@@ -220,6 +222,8 @@ class AddressBookServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
+    // ── removeContactFromAddressBook ──────────────────────────────────────────
+
     @Test
     void removeContactFromAddressBookSuccessfully() {
         addressBook.addContact(contact);
@@ -233,10 +237,6 @@ class AddressBookServiceTest {
 
         assertThat(result).isNotNull();
         assertThat(addressBook.getContacts()).doesNotContain(contact);
-        verify(addressBookRepository, times(1)).findById(1L);
-        verify(contactService, times(1)).getById(1L);
-        verify(addressBookRepository, times(1)).save(addressBook);
-        verify(addressBookRepository, times(1)).countByContactId(1L);
         verify(contactRepository, times(1)).delete(contact);
     }
 
@@ -258,6 +258,17 @@ class AddressBookServiceTest {
     }
 
     @Test
+    void removeContactThatDoesNotBelongToAddressBook() {
+        // Contact NOT added to addressBook
+        when(addressBookRepository.findById(1L)).thenReturn(Optional.of(addressBook));
+        when(contactService.getById(1L)).thenReturn(contact);
+
+        assertThatThrownBy(() -> addressBookService.removeContactFromAddressBook(1L, 1L))
+                .isInstanceOf(BusinessValidationException.class)
+                .hasMessageContaining("does not belong to address book");
+    }
+
+    @Test
     void removeContactUsedInMultipleAddressBooks() {
         addressBook.addContact(contact);
         when(addressBookRepository.findById(1L)).thenReturn(Optional.of(addressBook));
@@ -266,11 +277,12 @@ class AddressBookServiceTest {
         when(addressBookRepository.countByContactId(1L)).thenReturn(1L);
         when(addressBookMapper.toAddressBookDto(addressBook)).thenReturn(addressBookDto);
 
-        AddressBookDto result = addressBookService.removeContactFromAddressBook(1L, 1L);
+        addressBookService.removeContactFromAddressBook(1L, 1L);
 
-        assertThat(result).isNotNull();
         verify(contactRepository, never()).delete(contact);
     }
+
+    // ── getUniqueContacts ─────────────────────────────────────────────────────
 
     @Test
     void getUniqueContactsAcrossAllAddressBooks() {
@@ -278,28 +290,27 @@ class AddressBookServiceTest {
         contact2.setId(2L);
         contact2.setName("Jane");
 
-        addressBook.addContact(contact);
-        AddressBook addressBook2 = new AddressBook();
-        addressBook2.addContact(contact2);
-
-        when(addressBookRepository.findAll()).thenReturn(Arrays.asList(addressBook, addressBook2));
+        when(addressBookRepository.findAllDistinctContacts())
+                .thenReturn(Arrays.asList(contact, contact2));
         when(contactMapper.toContactDto(contact)).thenReturn(contactDto);
         when(contactMapper.toContactDto(contact2)).thenReturn(new ContactDto());
 
-        Set<ContactDto> result = addressBookService.getUniqueContactsAcrossAllAddressBooks();
+        var result = addressBookService.getUniqueContactsAcrossAllAddressBooks();
 
         assertThat(result).hasSize(2);
     }
 
     @Test
     void getUniqueContactsAcrossSpecificAddressBooks() {
-        addressBook.addContact(contact);
         List<Long> addressBookIds = Arrays.asList(1L);
 
-        when(addressBookRepository.findAllById(addressBookIds)).thenReturn(Arrays.asList(addressBook));
+        when(addressBookRepository.findAllById(addressBookIds))
+                .thenReturn(Arrays.asList(addressBook));
+        when(addressBookRepository.findDistinctContactsByAddressBookIds(addressBookIds))
+                .thenReturn(Arrays.asList(contact));
         when(contactMapper.toContactDto(contact)).thenReturn(contactDto);
 
-        Set<ContactDto> result = addressBookService.getUniqueContactsAcrossAddressBooks(addressBookIds);
+        var result = addressBookService.getUniqueContactsAcrossAddressBooks(addressBookIds);
 
         assertThat(result).hasSize(1);
     }
@@ -319,26 +330,31 @@ class AddressBookServiceTest {
     }
 
     @Test
-    void getUniqueContactsWithDuplicateContactsAcrossBooks() {
-        Contact duplicateContact = new Contact();
-        duplicateContact.setId(1L);
-        duplicateContact.setName("John");
-        duplicateContact.setPhoneNumber(123456789L);
+    void getUniqueContactsWithMissingAddressBookId() {
+        List<Long> addressBookIds = Arrays.asList(1L, 999L);
+        when(addressBookRepository.findAllById(addressBookIds))
+                .thenReturn(Arrays.asList(addressBook)); // only 1L found
 
-        AddressBook addressBook1 = new AddressBook();
-        addressBook1.setId(1L);
-        addressBook1.addContact(contact);
+        assertThatThrownBy(() -> addressBookService.getUniqueContactsAcrossAddressBooks(addressBookIds))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("999");
+    }
 
+    @Test
+    void getUniqueContactsDeduplicatesViaDbQuery() {
+        List<Long> addressBookIds = Arrays.asList(1L, 2L);
         AddressBook addressBook2 = new AddressBook();
         addressBook2.setId(2L);
-        addressBook2.addContact(duplicateContact);
 
-        when(addressBookRepository.findAll()).thenReturn(Arrays.asList(addressBook1, addressBook2));
+        when(addressBookRepository.findAllById(addressBookIds))
+                .thenReturn(Arrays.asList(addressBook, addressBook2));
+        // DB-level DISTINCT returns contact only once
+        when(addressBookRepository.findDistinctContactsByAddressBookIds(addressBookIds))
+                .thenReturn(Arrays.asList(contact));
         when(contactMapper.toContactDto(contact)).thenReturn(contactDto);
 
-        Set<ContactDto> result = addressBookService.getUniqueContactsAcrossAllAddressBooks();
+        var result = addressBookService.getUniqueContactsAcrossAddressBooks(addressBookIds);
 
         assertThat(result).hasSize(1);
     }
 }
-

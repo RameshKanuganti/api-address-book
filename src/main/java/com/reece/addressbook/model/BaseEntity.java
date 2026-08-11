@@ -3,7 +3,8 @@ package com.reece.addressbook.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -13,7 +14,8 @@ import java.sql.Timestamp;
 
 @MappedSuperclass
 @EntityListeners({AuditingEntityListener.class})
-@Data
+@Getter
+@Setter
 public class BaseEntity implements Serializable {
 
     @CreationTimestamp

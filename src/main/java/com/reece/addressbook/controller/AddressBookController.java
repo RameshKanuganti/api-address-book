@@ -11,13 +11,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Set;
 
 @RestController
-@RequestMapping("/api/v1/")
+@RequestMapping("/api/v1")
 public class AddressBookController {
 
     private static final Logger log = LoggerFactory.getLogger(AddressBookController.class);
@@ -34,23 +35,15 @@ public class AddressBookController {
     @PostMapping("/address-books")
     public ResponseEntity<AddressBookDto> createAddressBook(
             @Valid @RequestBody AddressBookDto request) {
-
         log.debug("Creating address book: {}", request.getBranchManager());
-        AddressBookDto response = addressBookService.createAddressBook(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(addressBookService.createAddressBook(request));
     }
 
-    @PostMapping("/address-books/{addressBookId}/contacts")
-    public ResponseEntity<AddressBookDto> addNewContactToAddressBook(
-            @PathVariable Long addressBookId,
-            @Valid @RequestBody ContactDto contactRequest) {
-
-        log.debug("Adding new contact to address book id={}, contact name={}",
-                addressBookId, contactRequest.getName());
-        AddressBookDto response = addressBookService.addNewContactToAddressBook(addressBookId, contactRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
+    /**
+     * Returns all address books with contacts.
+     * Example: GET /api/v1/address-books
+     */
     @GetMapping("/address-books")
     public ResponseEntity<List<AddressBookDto>> getAllAddressBooks() {
         return ResponseEntity.ok(addressBookService.getAllAddressBooks());
@@ -67,46 +60,56 @@ public class AddressBookController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Adds a contact to an address book.
+     * Returns the created/associated ContactDto rather than the full AddressBookDto
+     * to follow REST sub-resource conventions.
+     */
+    @PostMapping("/address-books/{addressBookId}/contacts")
+    public ResponseEntity<ContactDto> addNewContactToAddressBook(
+            @PathVariable Long addressBookId,
+            @Valid @RequestBody ContactDto contactRequest) {
+        log.debug("Adding contact to address book id={}, name={}",
+                addressBookId, contactRequest.getName());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(addressBookService.addNewContactToAddressBook(addressBookId, contactRequest));
+    }
+
     @DeleteMapping("/address-books/{addressBookId}/contacts/{contactId}")
     public ResponseEntity<AddressBookDto> removeContactFromAddressBook(
             @PathVariable Long addressBookId,
             @PathVariable Long contactId) {
-
-        AddressBookDto response = addressBookService.removeContactFromAddressBook(addressBookId, contactId);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                addressBookService.removeContactFromAddressBook(addressBookId, contactId));
     }
 
-    // ----- Unique contacts across address books -----
-
     /**
-     * Get unique contacts across multiple address books.
-     * `addressBookIds` must be provided as path variable or query parameter (e.g. /address-books/contacts/unique/1,2,3 or /address-books/contacts/unique?addressBookIds=1,2,3).
+     * Returns unique contacts for the supplied address book IDs.
+     * Address book IDs must be provided via the {@code addressBookIds} query param.
+     * Example: GET /api/v1/address-books/contacts/unique?addressBookIds=1,2,3
+     * All IDs must exist; any missing ID results in 404.
      */
-    @GetMapping({"/address-books/contacts/unique/{addressBookIds}", "/address-books/contacts/unique"})
+    @GetMapping("/address-books/contacts/unique")
     public ResponseEntity<Set<ContactDto>> getUniqueContactsAcrossAddressBooks(
-            @PathVariable(name = "addressBookIds", required = false) List<Long> pathAddressBookIds,
-            @RequestParam(name = "addressBookIds", required = false) List<Long> queryAddressBookIds) {
+            @RequestParam(required = false) List<Long> addressBookIds) {
 
-        List<Long> addressBookIds = (pathAddressBookIds != null && !pathAddressBookIds.isEmpty())
-                ? pathAddressBookIds
-                : queryAddressBookIds;
-
-        if (addressBookIds == null || addressBookIds.isEmpty()) {
-            throw new BusinessValidationException("Address book IDs parameter is required and cannot be empty");
+        if (ObjectUtils.isEmpty(addressBookIds)) {
+            throw new BusinessValidationException(
+                    "Address book IDs parameter is required and cannot be empty");
         }
-
-        Set<ContactDto> contacts = addressBookService.getUniqueContactsAcrossAddressBooks(addressBookIds);
-        return ResponseEntity.ok(contacts);
+        return ResponseEntity.ok(
+                addressBookService.getUniqueContactsAcrossAddressBooks(addressBookIds));
     }
 
     /**
-     * Return all contacts (global) with pagination. This mirrors the existing ContactsController#getAllContacts
-     * but is provided here as an alternative endpoint under address-books to fetch all contacts.
-     * Contacts are unique by phoneNumber at the persistence/service layer.
+     * Paginated list of all contacts across all address books.
+     * Uses standard page/size query parameters instead of path variables.
+     * Example: GET /api/v1/contacts?page=0&size=20
      */
-    @GetMapping("/address-books/contacts/{pageNo}/{pageSize}")
-    public ResponseEntity<Page<ContactDto>> getAllContactsAcrossAddressBooks(@PathVariable int pageNo, @PathVariable int pageSize) {
-        Page<ContactDto> contacts = contactService.getAllContacts(pageNo, pageSize);
-        return ResponseEntity.ok(contacts);
+    @GetMapping("/contacts")
+    public ResponseEntity<Page<ContactDto>> getAllContacts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "4") int size) {
+        return ResponseEntity.ok(contactService.getAllContacts(page, size));
     }
 }

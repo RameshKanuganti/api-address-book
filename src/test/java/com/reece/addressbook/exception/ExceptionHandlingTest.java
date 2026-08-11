@@ -48,18 +48,29 @@ class ExceptionHandlingTest {
         String invalidJson = "{\"type\":\"DOMESTIC\"}";
 
         mockMvc.perform(post("/api/v1/address-books")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(invalidJson))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createAddressBookWithBlankBranchManager() throws Exception {
+        String invalidJson = "{\"branchManager\":\"\",\"type\":\"DOMESTIC\",\"contacts\":[]}";
+
+        mockMvc.perform(post("/api/v1/address-books")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void createAddressBookWithInvalidContactData() throws Exception {
-        String invalidJson = "{\"branchManager\":\"Manager\",\"type\":\"DOMESTIC\",\"contacts\":[{\"name\":\"\",\"phoneNumber\":123}]}";
+        // blank contact name – should fail validation
+        String invalidJson = "{\"branchManager\":\"Manager\",\"type\":\"DOMESTIC\",\"contacts\":[{\"name\":\"\",\"phoneNumber\":\"+61412345678\"}]}";
 
         mockMvc.perform(post("/api/v1/address-books")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(invalidJson))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
                 .andExpect(status().isBadRequest());
     }
 
@@ -68,18 +79,29 @@ class ExceptionHandlingTest {
         String invalidJson = "{\"name\":\"John\"}";
 
         mockMvc.perform(post("/api/v1/address-books/999999/contacts")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(invalidJson))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void addContactWithBlankName() throws Exception {
-        String invalidJson = "{\"name\":\"\",\"phoneNumber\":123456789}";
+        String invalidJson = "{\"name\":\"\",\"phoneNumber\":\"+61412345678\"}";
 
         mockMvc.perform(post("/api/v1/address-books/1/contacts")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(invalidJson))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void addContactWithInvalidPhoneNumberFormat() throws Exception {
+        // Phone number without leading + is not valid E.164
+        String invalidJson = "{\"name\":\"John\",\"phoneNumber\":\"0412345678\"}";
+
+        mockMvc.perform(post("/api/v1/address-books/1/contacts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
                 .andExpect(status().isBadRequest());
     }
 
@@ -95,36 +117,27 @@ class ExceptionHandlingTest {
         String invalidJson = "{\"branchManager\":\"\",\"type\":\"DOMESTIC\",\"contacts\":[]}";
 
         mockMvc.perform(post("/api/v1/address-books")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(invalidJson))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void createAddressBookWithContactMissingPhoneNumberReturnsBadRequest() throws Exception {
-        String jsonPayload = "{\n" +
-                "  \"branchManager\": \"Jack\",\n" +
-                "  \"type\": \"INDUSTRIAL\",\n" +
-                "  \"contacts\": [\n" +
-                "    {\n" +
-                "      \"name\": \"Manisha\"\n" +
-                "    },\n" +
-                "    {\n" +
-                "      \"name\": \"Olivia\",\n" +
-                "      \"phoneNumber\": 678912345\n" +
-                "    },\n" +
-                "    {\n" +
-                "      \"name\": \"Travis\",\n" +
-                "      \"phoneNumber\": 789123456\n" +
-                "    }\n" +
-                "  ]\n" +
-                "}";
+        String jsonPayload = "{\n"
+                + "  \"branchManager\": \"Jack\",\n"
+                + "  \"type\": \"INDUSTRIAL\",\n"
+                + "  \"contacts\": [\n"
+                + "    {\"name\": \"Manisha\"},\n"
+                + "    {\"name\": \"Olivia\", \"phoneNumber\": \"+61678912345\"},\n"
+                + "    {\"name\": \"Travis\", \"phoneNumber\": \"+61789123456\"}\n"
+                + "  ]\n"
+                + "}";
 
         mockMvc.perform(post("/api/v1/address-books")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(jsonPayload))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonPayload))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("phoneNumber")));
     }
 }
-

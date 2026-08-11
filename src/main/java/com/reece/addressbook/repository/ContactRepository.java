@@ -10,6 +10,7 @@ import java.util.Optional;
 public interface ContactRepository extends JpaRepository<Contact, Long> {
     /**
      * Used to avoid creating duplicate contacts.
+     * Phone number is stored in E.164 format (e.g. +61412345678).
      */
-    Optional<Contact> findByPhoneNumber(Long phoneNumber);
+    Optional<Contact> findByPhoneNumber(String phoneNumber);
 }
