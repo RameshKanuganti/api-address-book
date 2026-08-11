@@ -6,6 +6,7 @@ import com.reece.addressbook.exception.BusinessValidationException;
 import com.reece.addressbook.service.AddressBookService;
 import com.reece.addressbook.service.ContactService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -108,8 +109,8 @@ public class AddressBookController {
      */
     @GetMapping("/contacts")
     public ResponseEntity<Page<ContactDto>> getAllContacts(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "4") int size) {
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "4") @Min(1) int size) {
         return ResponseEntity.ok(contactService.getAllContacts(page, size));
     }
 }

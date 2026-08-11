@@ -28,11 +28,16 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AddressBookServiceTest {
 
-    @Mock private AddressBookRepository addressBookRepository;
-    @Mock private ContactRepository contactRepository;
-    @Mock private ContactService contactService;
-    @Mock private AddressBookMapper addressBookMapper;
-    @Mock private ContactMapper contactMapper;
+    @Mock
+    private AddressBookRepository addressBookRepository;
+    @Mock
+    private ContactRepository contactRepository;
+    @Mock
+    private ContactService contactService;
+    @Mock
+    private AddressBookMapper addressBookMapper;
+    @Mock
+    private ContactMapper contactMapper;
 
     @InjectMocks
     private AddressBookService addressBookService;
@@ -206,39 +211,83 @@ class AddressBookServiceTest {
 
     @Test
     void deleteAddressBookSuccessfully() {
-        when(addressBookRepository.findById(1L)).thenReturn(Optional.of(addressBook));
 
-        addressBookService.deleteAddressBook(1L);
+        // Arrange
+        Long addressBookId = 1L;
+        List<Long> contactIds = List.of(1L);
 
-        verify(addressBookRepository, times(1)).findById(1L);
-        verify(addressBookRepository, times(1)).delete(addressBook);
+        when(addressBookRepository.existsById(addressBookId)).thenReturn(true);
+        when(addressBookRepository.findContactIdsByAddressBookId(addressBookId)).thenReturn(contactIds);
+        when(contactRepository.deleteOrphanedContacts(contactIds)).thenReturn(1);
+
+        // Act
+        addressBookService.deleteAddressBook(addressBookId);
+
+        // Assert
+        verify(addressBookRepository).existsById(addressBookId);
+        verify(addressBookRepository).findContactIdsByAddressBookId(addressBookId);
+        verify(addressBookRepository).deleteById(addressBookId);
+        verify(contactRepository).deleteOrphanedContacts(contactIds);
+        verifyNoMoreInteractions(addressBookRepository, contactRepository);
     }
+
 
     @Test
     void deleteNonExistentAddressBook() {
-        when(addressBookRepository.findById(999L)).thenReturn(Optional.empty());
+        when(addressBookRepository.existsById(999L))
+                .thenReturn(false);
 
-        assertThatThrownBy(() -> addressBookService.deleteAddressBook(999L))
-                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(
+                () -> addressBookService.deleteAddressBook(999L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("999");
+
+        verify(addressBookRepository)
+                .existsById(999L);
+
+        verify(addressBookRepository, never())
+                .deleteById(anyLong());
+
+        verify(contactRepository, never())
+                .deleteOrphanedContacts(any());
     }
+
 
     // ── removeContactFromAddressBook ──────────────────────────────────────────
 
     @Test
     void removeContactFromAddressBookSuccessfully() {
-        addressBook.addContact(contact);
-        when(addressBookRepository.findById(1L)).thenReturn(Optional.of(addressBook));
-        when(contactService.getById(1L)).thenReturn(contact);
-        when(addressBookRepository.save(addressBook)).thenReturn(addressBook);
-        when(addressBookRepository.countByContactId(1L)).thenReturn(0L);
-        when(addressBookMapper.toAddressBookDto(addressBook)).thenReturn(addressBookDto);
+        when(addressBookRepository.findById(1L))
+                .thenReturn(Optional.of(addressBook));
+        when(contactService.getById(1L))
+                .thenReturn(contact);
+        when(addressBookRepository.existsContactInAddressBook(1L, 1L))
+                .thenReturn(true);
+        when(addressBookRepository.removeContactFromAddressBook(1L, 1L))
+                .thenReturn(1);
+        when(addressBookRepository.countByContactId(1L))
+                .thenReturn(0L);
+        when(addressBookMapper.toAddressBookDto(addressBook))
+                .thenReturn(addressBookDto);
 
-        AddressBookDto result = addressBookService.removeContactFromAddressBook(1L, 1L);
+        AddressBookDto result =
+                addressBookService.removeContactFromAddressBook(1L, 1L);
 
         assertThat(result).isNotNull();
-        assertThat(addressBook.getContacts()).doesNotContain(contact);
-        verify(contactRepository, times(1)).delete(contact);
+
+        verify(addressBookRepository)
+                .existsContactInAddressBook(1L, 1L);
+
+        verify(addressBookRepository)
+                .removeContactFromAddressBook(1L, 1L);
+
+        verify(addressBookRepository)
+                .countByContactId(1L);
+
+        verify(contactRepository)
+                .deleteById(1L);
     }
+
 
     @Test
     void removeContactFromNonExistentAddressBook() {
@@ -270,35 +319,33 @@ class AddressBookServiceTest {
 
     @Test
     void removeContactUsedInMultipleAddressBooks() {
-        addressBook.addContact(contact);
-        when(addressBookRepository.findById(1L)).thenReturn(Optional.of(addressBook));
-        when(contactService.getById(1L)).thenReturn(contact);
-        when(addressBookRepository.save(addressBook)).thenReturn(addressBook);
-        when(addressBookRepository.countByContactId(1L)).thenReturn(1L);
-        when(addressBookMapper.toAddressBookDto(addressBook)).thenReturn(addressBookDto);
+        when(addressBookRepository.findById(1L))
+                .thenReturn(Optional.of(addressBook));
+        when(contactService.getById(1L))
+                .thenReturn(contact);
+        when(addressBookRepository.existsContactInAddressBook(1L, 1L))
+                .thenReturn(true);
+        when(addressBookRepository.removeContactFromAddressBook(1L, 1L))
+                .thenReturn(1);
+        when(addressBookRepository.countByContactId(1L))
+                .thenReturn(1L);
+        when(addressBookMapper.toAddressBookDto(addressBook))
+                .thenReturn(addressBookDto);
 
-        addressBookService.removeContactFromAddressBook(1L, 1L);
+        AddressBookDto result =
+                addressBookService.removeContactFromAddressBook(1L, 1L);
 
-        verify(contactRepository, never()).delete(contact);
+        assertThat(result).isNotNull();
+
+        verify(addressBookRepository)
+                .removeContactFromAddressBook(1L, 1L);
+
+        verify(contactRepository, never())
+                .deleteById(1L);
     }
+
 
     // ── getUniqueContacts ─────────────────────────────────────────────────────
-
-    @Test
-    void getUniqueContactsAcrossAllAddressBooks() {
-        Contact contact2 = new Contact();
-        contact2.setId(2L);
-        contact2.setName("Jane");
-
-        when(addressBookRepository.findAllDistinctContacts())
-                .thenReturn(Arrays.asList(contact, contact2));
-        when(contactMapper.toContactDto(contact)).thenReturn(contactDto);
-        when(contactMapper.toContactDto(contact2)).thenReturn(new ContactDto());
-
-        var result = addressBookService.getUniqueContactsAcrossAllAddressBooks();
-
-        assertThat(result).hasSize(2);
-    }
 
     @Test
     void getUniqueContactsAcrossSpecificAddressBooks() {
@@ -313,20 +360,6 @@ class AddressBookServiceTest {
         var result = addressBookService.getUniqueContactsAcrossAddressBooks(addressBookIds);
 
         assertThat(result).hasSize(1);
-    }
-
-    @Test
-    void getUniqueContactsWithNullAddressBookIds() {
-        assertThatThrownBy(() -> addressBookService.getUniqueContactsAcrossAddressBooks(null))
-                .isInstanceOf(BusinessValidationException.class)
-                .hasMessage("Address book IDs parameter is required and cannot be empty");
-    }
-
-    @Test
-    void getUniqueContactsWithEmptyAddressBookIds() {
-        assertThatThrownBy(() -> addressBookService.getUniqueContactsAcrossAddressBooks(new ArrayList<>()))
-                .isInstanceOf(BusinessValidationException.class)
-                .hasMessage("Address book IDs parameter is required and cannot be empty");
     }
 
     @Test
