@@ -1,159 +1,496 @@
 # Branch Manager Address Book API
 
-A RESTful Web Service built with Spring Boot, Spring Data JPA, and H2 database to manage branch address books and contacts as per the Address Book Tech Task requirements.
+A RESTful API for branch managers to manage address books and contacts.
+
+The application supports multiple address books, shared contacts, contact deduplication by phone number, contact removal, unique contact queries across address books, and paginated contact retrieval.
 
 ---
 
-## 📋 Overview & Requirements
+## Functional Overview
 
-The system allows branch managers to manage contacts organized into address books. Key business requirements satisfied by this service:
+The Address Book API provides the following functionality:
 
-1. **Multiple Address Books**: Support creation and maintenance of multiple address books per branch manager/type (e.g. `CIVIL`, `DOMESTIC`, `FINANCIAL`, `INDUSTRIAL`, `INFRASTRUCTURE`, `IRRIGATION`).
-2. **Contact Management**: Ability to add contacts to address books and remove contacts from address books.
-3. **Contact Sharing & Deduplication**:
-   - Contacts are uniquely identified by their phone number (`phoneNumber`).
-   - The same contact can belong to multiple address books without duplicate database entries.
-   - Removing a contact from an address book unlinks it; if no other address book references that contact, it is automatically cleaned up from the database.
-4. **Unique Contacts Listing**: Retrieve a consolidated, unique list of contacts across selected address books or all address books.
-5. **Global Contact Listing**: Retrieve all contacts across all address books with pagination support.
-
----
-
-## 🛠️ Tech Stack
-
-- **Java Version**: 17
-- **Framework**: Spring Boot 4.0.7
-- **Persistence**: Spring Data JPA / Hibernate
-- **Database**: In-Memory H2 Database
-- **API Documentation**: SpringDoc OpenAPI / Swagger UI
-- **Build Tool**: Apache Maven
+* Create an address book.
+* Retrieve address books.
+* Retrieve an address book by ID.
+* Delete an address book.
+* Add contacts to an address book.
+* Remove contacts from an address book.
+* Reuse an existing contact when the same phone number is provided.
+* Allow a contact to belong to multiple address books.
+* Remove an unreferenced contact when it is no longer associated with any address book.
+* Retrieve unique contacts across address books.
+* Retrieve unique contacts for selected address books.
+* Retrieve contacts using pagination.
+* Validate supported address book types.
+* Provide sample address books, contacts, and relationships for demonstration.
+* Expose interactive API documentation through Swagger/OpenAPI.
 
 ---
 
-## 🚀 Getting Started
+## Address Book Types
 
-### Prerequisites
-- Java Development Kit (JDK) 17 or higher
-- Apache Maven 3.8+ (or use the included `./mvnw` / `mvnw.cmd` wrapper)
+The application currently supports the following address book types:
 
-### Build the Project
-```bash
-# Clean and run all unit and integration tests
-./mvnw clean install
+```text
+DOMESTIC
+CIVIL
+INDUSTRIAL
+FINANCIAL
+INFRASTRUCTURE
+IRRIGATION
 ```
 
-### Run the Application
-```bash
-./mvnw spring-boot:run
-```
-The server will start on `http://localhost:8080`.
-
 ---
 
-## 📖 API Documentation & Endpoints
+# Address Book APIs
 
-Base URL: `/api/v1`
+Base URL:
 
-### 📚 Address Book Management
+```text
+http://localhost:8080/api/v1
+```
 
-#### 1. Create Address Book
-* **Endpoint**: `POST /api/v1/address-books`
-* **Description**: Creates a new address book with branch manager name, type, and optional initial contacts.
-* **Request Body**:
+## Create Address Book
+
+Creates a new address book.
+
+```http
+POST /api/v1/address-books
+```
+
+### Request
+
 ```json
 {
   "branchManager": "Nitesh",
   "type": "DOMESTIC",
   "contacts": [
     {
-      "name": "Ramesh",
-      "phoneNumber": 123456789
+      "name": "Andrew",
+      "phoneNumber": "+61234567890"
     }
   ]
 }
 ```
-* **Response**: `201 Created` with created `AddressBookDto`.
+
+### Response
+
+```text
+201 Created
+```
+
+The address book is created with the supplied branch manager, address book type, and contacts.
 
 ---
 
-#### 2. Get All Address Books
-* **Endpoint**: `GET /api/v1/address-books`
-* **Description**: Fetches all existing address books with their associated contacts.
-* **Response**: `200 OK` with `List<AddressBookDto>`.
+## Get All Address Books
+
+Retrieves all address books.
+
+```http
+GET /api/v1/address-books
+```
+
+### Response
+
+```text
+200 OK
+```
+
+The response contains the address books and their associated contacts.
 
 ---
 
-#### 3. Get Address Book by ID
-* **Endpoint**: `GET /api/v1/address-books/{id}`
-* **Description**: Fetches details of a specific address book by its unique ID.
-* **Path Parameter**: `id` (Long) - Address Book ID.
-* **Response**: `200 OK` with `AddressBookDto` or `404 Not Found`.
+## Get Address Book by ID
+
+Retrieves a specific address book.
+
+```http
+GET /api/v1/address-books/{id}
+```
+
+Example:
+
+```http
+GET /api/v1/address-books/1
+```
+
+### Responses
+
+```text
+200 OK
+404 Not Found
+```
 
 ---
 
-#### 4. Delete Address Book
-* **Endpoint**: `DELETE /api/v1/address-books/{id}`
-* **Description**: Deletes an address book by ID. Unlinks its contacts (and cleans up unreferenced contacts from DB).
-* **Path Parameter**: `id` (Long) - Address Book ID.
-* **Response**: `204 No Content`.
+## Delete Address Book
+
+Deletes an address book.
+
+```http
+DELETE /api/v1/address-books/{id}
+```
+
+Example:
+
+```http
+DELETE /api/v1/address-books/1
+```
+
+When an address book is deleted, its contact relationships are removed.
+
+If a contact is no longer associated with any address book, the contact can also be removed.
 
 ---
 
-### 👤 Contact Management within Address Books
+# Contact APIs
 
-#### 5. Add Contact to Address Book
-* **Endpoint**: `POST /api/v1/address-books/{addressBookId}/contacts`
-* **Description**: Creates a new contact (or reuses an existing contact with the same phone number) and adds it to the specified address book.
-* **Path Parameter**: `addressBookId` (Long) - Target Address Book ID.
-* **Request Body**:
+## Add Contact to Address Book
+
+Adds a contact to an existing address book.
+
+```http
+POST /api/v1/address-books/{addressBookId}/contacts
+```
+
+Example:
+
+```http
+POST /api/v1/address-books/1/contacts
+```
+
+### Request
+
 ```json
 {
   "name": "Andrew",
-  "phoneNumber": 234567890
+  "phoneNumber": "+61234567890"
 }
 ```
-* **Response**: `201 Created` with updated `AddressBookDto`.
+
+### Contact Reuse
+
+Contacts are identified by their phone number.
+
+If the supplied phone number already exists, the existing contact is reused instead of creating another contact record.
+
+This allows the same contact to be associated with multiple address books.
+
+For example:
+
+```text
+Address Book 1 ─────┐
+                    │
+                    ▼
+                Contact
+                    ▲
+                    │
+Address Book 2 ─────┘
+```
 
 ---
 
-#### 6. Remove Contact from Address Book
-* **Endpoint**: `DELETE /api/v1/address-books/{addressBookId}/contacts/{contactId}`
-* **Description**: Removes a contact from the specified address book. If the contact is no longer referenced in any other address book, it is automatically removed from the database.
-* **Path Parameters**:
-  - `addressBookId` (Long) - Address Book ID.
-  - `contactId` (Long) - Contact ID to remove.
-* **Response**: `200 OK` with updated `AddressBookDto`.
+## Remove Contact from Address Book
+
+Removes a contact from a specific address book.
+
+```http
+DELETE /api/v1/address-books/{addressBookId}/contacts/{contactId}
+```
+
+Example:
+
+```http
+DELETE /api/v1/address-books/1/contacts/2
+```
+
+The contact is removed from the selected address book.
+
+If the contact is not associated with any other address book, it is no longer required and can be removed from the database.
 
 ---
 
-### 🔍 Cross-Address Book Contact Queries
+# Contact Query APIs
 
-#### 7. Get Unique Contacts Across Address Books
-* **Endpoint**: `GET /api/v1/address-books/contacts/unique`
-* **Description**: Returns a consolidated set of unique contacts. If `addressBookIds` query parameter is provided, returns unique contacts across only those specified address books.
-* **Query Parameter**: `addressBookIds` (optional, comma-separated List of Longs, e.g., `?addressBookIds=1,2`)
-* **Response**: `200 OK` with `Set<ContactDto>`.
+## Get Unique Contacts
+
+Retrieves unique contacts across all address books.
+
+```http
+GET /api/v1/address-books/contacts/unique
+```
+
+### Response
+
+```text
+200 OK
+```
+
+The result contains each contact only once, even when the contact belongs to multiple address books.
 
 ---
 
-#### 8. Get All Contacts with Pagination
-* **Endpoint**: `GET /api/v1/address-books/contacts/{pageNo}/{pageSize}`
-* **Description**: Returns a paginated list of all contacts stored in the system.
-* **Path Parameters**:
-  - `pageNo` (int) - Zero-based page index (e.g. `0`).
-  - `pageSize` (int) - Number of items per page (e.g. `10`).
-* **Response**: `200 OK` with Spring Data `Page<ContactDto>`.
+## Get Unique Contacts for Selected Address Books
+
+Retrieves unique contacts from selected address books.
+
+```http
+GET /api/v1/address-books/contacts/unique?addressBookIds=1,2
+```
+
+The `addressBookIds` parameter specifies the address books that should be included in the query.
+
+For example:
+
+```text
+Address Book 1 -> Contact A
+Address Book 2 -> Contact A
+Address Book 3 -> Contact B
+```
+
+Requesting address books `1,2` returns:
+
+```text
+Contact A
+```
+
+only once.
 
 ---
 
-## 🛠️ Additional Resources
+## Get Contacts with Pagination
 
-- **Swagger UI**: Interactive API documentation available at:
-  - `http://localhost:8080/swagger-ui.html` or `http://localhost:8080/swagger-ui/index.html`
-- **OpenAPI Spec**: `http://localhost:8080/v3/api-docs`
-- **H2 Web Console**: Access in-memory database interface at:
-  - `http://localhost:8080/h2-console`
-  - JDBC URL: `jdbc:h2:mem:testdb`
-  - Username: `sa`
-  - Password: *(leave empty)*
+Retrieves contacts using page number and page size.
 
+```http
+GET /api/v1/address-books/contacts/{pageNo}/{pageSize}
+```
+
+Example:
+
+```http
+GET /api/v1/address-books/contacts/0/10
+```
+
+### Parameters
+
+| Parameter  | Description                          |
+| ---------- | ------------------------------------ |
+| `pageNo`   | Zero-based page number               |
+| `pageSize` | Number of contacts returned per page |
+
+Example:
+
+```text
+pageNo = 0
+pageSize = 10
+```
+
+This returns the first page containing up to 10 contacts.
+
+---
+
+# Sample Data
+
+The application includes sample database schema and data:
+
+```text
+src/main/resources/schema.sql
+src/main/resources/data.sql
+```
+
+The sample dataset contains:
+
+* 10 contacts
+* 5 address books
+* Multiple address-book/contact relationships
+* Contacts shared across multiple address books
+
+### Sample Address Books
+
+| Branch Manager | Type       |
+| -------------- | ---------- |
+| Nitesh         | DOMESTIC   |
+| Max            | IRRIGATION |
+| Jack           | INDUSTRIAL |
+| Harry          | INDUSTRIAL |
+| Steve          | IRRIGATION |
+
+The sample data is useful for testing the API functionality through Swagger, Postman, curl, or another REST client.
+
+---
+
+# Functional Examples
+
+## Example 1 — Create an Address Book
+
+```http
+POST /api/v1/address-books
+```
+
+```json
+{
+  "branchManager": "John",
+  "type": "CIVIL",
+  "contacts": [
+    {
+      "name": "Alice",
+      "phoneNumber": "+61400000001"
+    }
+  ]
+}
+```
+
+---
+
+## Example 2 — Add the Same Contact to Another Address Book
+
+Create or use another address book and add:
+
+```json
+{
+  "name": "Alice",
+  "phoneNumber": "+61400000001"
+}
+```
+
+Because the phone number already exists, the existing contact is reused.
+
+The resulting relationship is:
+
+```text
+Address Book A ──┐
+                 ├── Alice (+61400000001)
+Address Book B ──┘
+```
+
+No duplicate contact needs to be created.
+
+---
+
+## Example 3 — Retrieve Unique Contacts
+
+```http
+GET /api/v1/address-books/contacts/unique
+```
+
+If Alice belongs to three address books, Alice appears only once in the result.
+
+---
+
+## Example 4 — Retrieve Unique Contacts from Specific Address Books
+
+```http
+GET /api/v1/address-books/contacts/unique?addressBookIds=1,2
+```
+
+Only contacts associated with address books `1` and `2` are considered, and duplicate contacts are returned only once.
+
+---
+
+# Swagger / OpenAPI
+
+Interactive API documentation is available when the application is running:
+
+```text
+http://localhost:8080/swagger-ui/index.html
+```
+
+OpenAPI specification:
+
+```text
+http://localhost:8080/v3/api-docs
+```
+
+Swagger UI can be used to execute the available API operations without requiring an external REST client.
+
+---
+
+# H2 Database Console
+
+The H2 console is available for local database inspection:
+
+```text
+http://localhost:8080/h2-console
+```
+
+Default JDBC URL:
+
+```text
+jdbc:h2:mem:testdb
+```
+
+Username:
+
+```text
+sa
+```
+
+Password:
+
+```text
+test
+```
+
+The console can be used to inspect the address book, contact, and relationship data created by the sample dataset and API operations.
+
+---
+
+# Docker
+
+The application can also be run as a Docker container.
+
+Build the image:
+
+```bash
+docker build -t addressbook-api .
+```
+
+Run the container:
+
+```bash
+docker run --rm -p 8080:8080 addressbook-api
+```
+
+The API is then available at:
+
+```text
+http://localhost:8080
+```
+
+Swagger UI:
+
+```text
+http://localhost:8080/swagger-ui/index.html
+```
+
+H2 console:
+
+```text
+http://localhost:8080/h2-console
+```
+
+---
+
+# Functional Test Scenarios
+
+The application covers the following key scenarios:
+
+| Scenario                               | Expected Behaviour                                      |
+| -------------------------------------- | ------------------------------------------------------- |
+| Create address book                    | Address book is created                                 |
+| Retrieve address books                 | All available address books are returned                |
+| Retrieve address book by ID            | Requested address book is returned                      |
+| Address book does not exist            | `404 Not Found`                                         |
+| Add new contact                        | Contact is created and associated with the address book |
+| Add existing contact                   | Existing contact is reused                              |
+| Same contact in multiple address books | One contact can have multiple address-book associations |
+| Remove contact                         | Contact is removed from the selected address book       |
+| Remove final contact association       | Unreferenced contact can be removed                     |
+| Retrieve unique contacts               | Duplicate contacts are returned only once               |
+| Filter unique contacts                 | Results are limited to selected address books           |
+| Paginate contacts                      | Contacts are returned according to page and page size   |
+| Invalid address book type              | Request validation fails                                |
+| Delete address book                    | Address book and its relationships are removed          |
