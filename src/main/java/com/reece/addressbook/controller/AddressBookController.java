@@ -2,6 +2,7 @@ package com.reece.addressbook.controller;
 
 import com.reece.addressbook.dto.AddressBookDto;
 import com.reece.addressbook.dto.ContactDto;
+import com.reece.addressbook.exception.BusinessValidationException;
 import com.reece.addressbook.service.AddressBookService;
 import com.reece.addressbook.service.ContactService;
 import jakarta.validation.Valid;
@@ -79,13 +80,21 @@ public class AddressBookController {
 
     /**
      * Get unique contacts across multiple address books.
-     * If `addressBookIds` is provided (comma separated list) the unique contacts
-     * will be computed only from those address books.
-     * Example: /address-books/contacts/unique?addressBookIds=1,2,3
+     * `addressBookIds` must be provided as path variable or query parameter (e.g. /address-books/contacts/unique/1,2,3 or /address-books/contacts/unique?addressBookIds=1,2,3).
      */
-    @GetMapping("/address-books/contacts/unique")
+    @GetMapping({"/address-books/contacts/unique/{addressBookIds}", "/address-books/contacts/unique"})
     public ResponseEntity<Set<ContactDto>> getUniqueContactsAcrossAddressBooks(
-            @RequestParam(name = "addressBookIds", required = false) List<Long> addressBookIds) {
+            @PathVariable(name = "addressBookIds", required = false) List<Long> pathAddressBookIds,
+            @RequestParam(name = "addressBookIds", required = false) List<Long> queryAddressBookIds) {
+
+        List<Long> addressBookIds = (pathAddressBookIds != null && !pathAddressBookIds.isEmpty())
+                ? pathAddressBookIds
+                : queryAddressBookIds;
+
+        if (addressBookIds == null || addressBookIds.isEmpty()) {
+            throw new BusinessValidationException("Address book IDs parameter is required and cannot be empty");
+        }
+
         Set<ContactDto> contacts = addressBookService.getUniqueContactsAcrossAddressBooks(addressBookIds);
         return ResponseEntity.ok(contacts);
     }
@@ -97,7 +106,7 @@ public class AddressBookController {
      */
     @GetMapping("/address-books/contacts/{pageNo}/{pageSize}")
     public ResponseEntity<Page<ContactDto>> getAllContactsAcrossAddressBooks(@PathVariable int pageNo, @PathVariable int pageSize) {
-        Page<ContactDto> contacts = contactService.getAllContacts(pageNo,pageSize);
+        Page<ContactDto> contacts = contactService.getAllContacts(pageNo, pageSize);
         return ResponseEntity.ok(contacts);
     }
 }

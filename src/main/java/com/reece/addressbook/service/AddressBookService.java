@@ -2,6 +2,7 @@ package com.reece.addressbook.service;
 
 import com.reece.addressbook.dto.AddressBookDto;
 import com.reece.addressbook.dto.ContactDto;
+import com.reece.addressbook.exception.BusinessValidationException;
 import com.reece.addressbook.exception.ResourceNotFoundException;
 import com.reece.addressbook.mapper.AddressBookMapper;
 import com.reece.addressbook.mapper.ContactMapper;
@@ -129,12 +130,12 @@ public class AddressBookService {
     }
 
     /**
-     * Unique set of contacts across the provided address book ids. If the list is empty
-     * or null the result will be empty.
+     * Unique set of contacts across the provided address book ids. Throws BusinessValidationException
+     * if the list is null or empty.
      */
     public Set<ContactDto> getUniqueContactsAcrossAddressBooks(List<Long> addressBookIds) {
         if (addressBookIds == null || addressBookIds.isEmpty()) {
-            return new LinkedHashSet<>();
+            throw new BusinessValidationException("Address book IDs parameter is required and cannot be empty");
         }
 
         Set<Contact> uniqueContacts = addressBookRepository.findAllById(addressBookIds).stream()

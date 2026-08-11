@@ -355,7 +355,8 @@ class AddressBookIntegrationTest {
         AddressBookDto addressBook3 = createAndPersistAddressBook("Jack", AddressBookType.INDUSTRIAL,
             createContact("Manisha", 567891234L), createContact("Olivia", 678912345L));
 
-        MvcResult result = mockMvc.perform(get("/api/v1/address-books/contacts/unique"))
+        MvcResult result = mockMvc.perform(get("/api/v1/address-books/contacts/unique")
+                .param("addressBookIds", addressBook1.getId() + "," + addressBook2.getId() + "," + addressBook3.getId()))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -382,8 +383,7 @@ class AddressBookIntegrationTest {
             createContact("Ramesh", 123456789L));
 
         mockMvc.perform(get("/api/v1/address-books/contacts/unique"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(status().isBadRequest());
     }
 
     @Test

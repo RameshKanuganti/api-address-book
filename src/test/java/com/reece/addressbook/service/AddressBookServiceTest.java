@@ -2,6 +2,7 @@ package com.reece.addressbook.service;
 
 import com.reece.addressbook.dto.AddressBookDto;
 import com.reece.addressbook.dto.ContactDto;
+import com.reece.addressbook.exception.BusinessValidationException;
 import com.reece.addressbook.exception.ResourceNotFoundException;
 import com.reece.addressbook.mapper.AddressBookMapper;
 import com.reece.addressbook.mapper.ContactMapper;
@@ -305,16 +306,16 @@ class AddressBookServiceTest {
 
     @Test
     void getUniqueContactsWithNullAddressBookIds() {
-        Set<ContactDto> result = addressBookService.getUniqueContactsAcrossAddressBooks(null);
-
-        assertThat(result).isEmpty();
+        assertThatThrownBy(() -> addressBookService.getUniqueContactsAcrossAddressBooks(null))
+                .isInstanceOf(BusinessValidationException.class)
+                .hasMessage("Address book IDs parameter is required and cannot be empty");
     }
 
     @Test
     void getUniqueContactsWithEmptyAddressBookIds() {
-        Set<ContactDto> result = addressBookService.getUniqueContactsAcrossAddressBooks(new ArrayList<>());
-
-        assertThat(result).isEmpty();
+        assertThatThrownBy(() -> addressBookService.getUniqueContactsAcrossAddressBooks(new ArrayList<>()))
+                .isInstanceOf(BusinessValidationException.class)
+                .hasMessage("Address book IDs parameter is required and cannot be empty");
     }
 
     @Test
