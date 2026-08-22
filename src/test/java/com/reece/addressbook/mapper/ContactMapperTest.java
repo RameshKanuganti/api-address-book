@@ -52,6 +52,30 @@ class ContactMapperTest {
     }
 
     @Test
+    void mapContactDtoToContactNormalizesWhitespaceInPhoneNumber() {
+        ContactDto dto = new ContactDto();
+        dto.setId(2L);
+        dto.setName("Whitespace User");
+        dto.setPhoneNumber("  +61 123 456 789  ");
+
+        Contact result = contactMapper.toContactEntity(dto);
+
+        assertThat(result.getPhoneNumber()).isEqualTo("+61123456789");
+    }
+
+    @Test
+    void mapContactDtoToContactAllowsNullPhoneNumber() {
+        ContactDto dto = new ContactDto();
+        dto.setId(3L);
+        dto.setName("No Phone User");
+        dto.setPhoneNumber(null);
+
+        Contact result = contactMapper.toContactEntity(dto);
+
+        assertThat(result.getPhoneNumber()).isNull();
+    }
+
+    @Test
     void roundTripContactMapping() {
         Contact original = new Contact();
         original.setId(1L);

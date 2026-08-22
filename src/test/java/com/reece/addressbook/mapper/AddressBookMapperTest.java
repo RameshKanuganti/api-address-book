@@ -1,15 +1,18 @@
 package com.reece.addressbook.mapper;
 
 import com.reece.addressbook.dto.AddressBookDto;
+import com.reece.addressbook.dto.ContactDto;
 import com.reece.addressbook.mapper.AddressBookMapper;
 import com.reece.addressbook.model.AddressBook;
 import com.reece.addressbook.model.AddressBookType;
+import com.reece.addressbook.model.Contact;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.HashSet;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -70,6 +73,32 @@ class AddressBookMapperTest {
     }
 
     @Test
+    void mapAddressBookDtoToAddressBookWithContacts() {
+        ContactDto contactDto1 = new ContactDto();
+        contactDto1.setId(1L);
+        contactDto1.setName("John");
+        contactDto1.setPhoneNumber("+61123456789");
+
+        ContactDto contactDto2 = new ContactDto();
+        contactDto2.setId(2L);
+        contactDto2.setName("Jane");
+        contactDto2.setPhoneNumber("+61987654321");
+
+        AddressBookDto dto = new AddressBookDto();
+        dto.setId(10L);
+        dto.setBranchManager("Manager Contacts");
+        dto.setType(AddressBookType.CIVIL);
+        dto.setContacts(Set.of(contactDto1, contactDto2));
+
+        AddressBook result = addressBookMapper.toAddressBookEntity(dto);
+
+        assertThat(result.getContacts()).hasSize(2);
+        assertThat(result.getContacts())
+                .extracting(Contact::getPhoneNumber)
+                .containsExactlyInAnyOrder("+61123456789", "+61987654321");
+    }
+
+    @Test
     void mapAddressBookWithAllTypes() {
         for (AddressBookType type : AddressBookType.values()) {
             AddressBook ab = new AddressBook();
@@ -109,6 +138,32 @@ class AddressBookMapperTest {
         AddressBook result = addressBookMapper.toAddressBookEntity(dto);
 
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    void mapAddressBookToDtoWithContacts() {
+        Contact contact1 = new Contact();
+        contact1.setId(1L);
+        contact1.setName("John");
+        contact1.setPhoneNumber("+61123456789");
+
+        Contact contact2 = new Contact();
+        contact2.setId(2L);
+        contact2.setName("Jane");
+        contact2.setPhoneNumber("+61987654321");
+
+        AddressBook addressBook = new AddressBook();
+        addressBook.setId(20L);
+        addressBook.setBranchManager("Manager With Contacts");
+        addressBook.setType(AddressBookType.INDUSTRIAL);
+        addressBook.setContacts(Set.of(contact1, contact2));
+
+        AddressBookDto result = addressBookMapper.toAddressBookDto(addressBook);
+
+        assertThat(result.getContacts()).hasSize(2);
+        assertThat(result.getContacts())
+                .extracting(ContactDto::getName)
+                .containsExactlyInAnyOrder("John", "Jane");
     }
 
     @Test

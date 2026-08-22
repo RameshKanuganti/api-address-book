@@ -10,7 +10,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.io.Serializable;
-import java.sql.Timestamp;
+import java.time.Instant;
 
 @MappedSuperclass
 @EntityListeners({AuditingEntityListener.class})
@@ -20,10 +20,10 @@ public class BaseEntity implements Serializable {
 
     @CreationTimestamp
     @Column(updatable = false, nullable = false)
-    private Timestamp createdDate;
+    private Instant createdDate;
 
     @UpdateTimestamp
     @Column(nullable = false)
-    private Timestamp updatedDate;
+    private Instant updatedDate;
 
 }

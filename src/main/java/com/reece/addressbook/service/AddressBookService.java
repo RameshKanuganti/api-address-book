@@ -158,7 +158,7 @@ public class AddressBookService {
                     remainingReferences);
         }
 
-        return getAddressBookById(addressBookId);
+        return addressBookMapper.toAddressBookDto(getAddressBookEntity(addressBookId));
     }
 
     /**
