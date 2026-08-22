@@ -80,7 +80,7 @@ public class AddressBookService {
 
     @Transactional(readOnly = true)
     public List<AddressBookDto> getAllAddressBooks() {
-        return addressBookRepository.findAll().stream()
+        return addressBookRepository.findAllWithContacts().stream()
                 .map(addressBookMapper::toAddressBookDto)
                 .collect(Collectors.toList());
     }
@@ -158,7 +158,7 @@ public class AddressBookService {
                     remainingReferences);
         }
 
-        return getAddressBookById(addressBookId);
+        return addressBookMapper.toAddressBookDto(getAddressBookEntity(addressBookId));
     }
 
     /**

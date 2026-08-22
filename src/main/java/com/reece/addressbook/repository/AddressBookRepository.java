@@ -68,4 +68,11 @@ public interface AddressBookRepository extends JpaRepository<AddressBook, Long> 
     List<Long> findContactIdsByAddressBookId(
             @Param("addressBookId") Long addressBookId);
 
+    @Query("""
+                select distinct ab
+                from AddressBook ab
+                left join fetch ab.contacts
+            """)
+    List<AddressBook> findAllWithContacts();
+
 }

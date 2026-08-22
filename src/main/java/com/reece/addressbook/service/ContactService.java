@@ -37,24 +37,22 @@ public class ContactService {
 
     @Transactional(readOnly = true)
     public Contact getById(Long id) {
-        return contactRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Contact not found, id=" + id));
+        return findById(id);
     }
 
     @Transactional(readOnly = true)
     public Page<ContactDto> getAll(Pageable pageable) {
-        return contactRepository.findAll(pageable)
-                .map(contactMapper::toContactDto);
+        return findAll(pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<ContactDto> getAllContacts(int pageNo, int pageSize) {
-        return getAll(PageRequest.of(pageNo, pageSize));
+        return findAll(PageRequest.of(pageNo, pageSize));
     }
 
     @Transactional
     public void delete(Long id) {
-        Contact contact = getById(id);
+        Contact contact = findById(id);
         contactRepository.delete(contact);
         log.info("Deleted contact id={}", id);
     }
@@ -69,7 +67,7 @@ public class ContactService {
     public Contact getOrCreateContact(Contact contact) {
         // If the contact has an ID, retrieve it from the database
         if (!ObjectUtils.isEmpty(contact.getId())) {
-            return getById(contact.getId());
+            return findById(contact.getId());
         }
 
         // Check if a contact with the same phone number already exists
@@ -81,5 +79,15 @@ public class ContactService {
                             contactEntity.getId(), contactEntity.getName(), contactEntity.getPhoneNumber());
                     return contactEntity;
                 });
+    }
+
+    private Contact findById(Long id) {
+        return contactRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact not found, id=" + id));
+    }
+
+    private Page<ContactDto> findAll(Pageable pageable) {
+        return contactRepository.findAll(pageable)
+                .map(contactMapper::toContactDto);
     }
 }

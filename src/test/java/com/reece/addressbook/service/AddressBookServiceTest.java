@@ -167,19 +167,19 @@ class AddressBookServiceTest {
         addressBook2.setBranchManager("Manager2");
 
         List<AddressBook> books = Arrays.asList(addressBook, addressBook2);
-        when(addressBookRepository.findAll()).thenReturn(books);
+        when(addressBookRepository.findAllWithContacts()).thenReturn(books);
         when(addressBookMapper.toAddressBookDto(addressBook)).thenReturn(addressBookDto);
         when(addressBookMapper.toAddressBookDto(addressBook2)).thenReturn(new AddressBookDto());
 
         List<AddressBookDto> result = addressBookService.getAllAddressBooks();
 
         assertThat(result).hasSize(2);
-        verify(addressBookRepository, times(1)).findAll();
+        verify(addressBookRepository, times(1)).findAllWithContacts();
     }
 
     @Test
     void getAllAddressBooksReturnsEmptyList() {
-        when(addressBookRepository.findAll()).thenReturn(new ArrayList<>());
+        when(addressBookRepository.findAllWithContacts()).thenReturn(new ArrayList<>());
 
         List<AddressBookDto> result = addressBookService.getAllAddressBooks();
 
